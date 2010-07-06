@@ -32,7 +32,7 @@ def get_current_song(station)
   Yesradio::get_recent :name => station.name
 end
 
-def poll_stations(stations)
+def poll_stations(stations, artist="Steve Miller")
   stations = [*stations]
   stations.each do |station|
     puts "#{station.name}: #{station.desc}"
