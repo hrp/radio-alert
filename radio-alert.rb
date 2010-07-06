@@ -38,15 +38,11 @@ def poll_stations(stations)
     puts "#{station.name}: #{station.desc}"
     song = Yesradio::get_recent :name => station.name, :max => 1
     song = [*song]
-    look_for(song.first)
-  end
-end
-
-def look_for(song, artist="Steve Miller")
-  unless song.nil?
-    puts "#{song.by} - #{song.title}"
-    if song.by.include?(artist)
-      send_alert(station, song)
+    unless song.first.nil?
+      puts "#{song.first.by} - #{song.first.title}"
+      if song.first.by.include?(artist)
+        send_alert(station, song.first)
+      end
     end
   end
 end
