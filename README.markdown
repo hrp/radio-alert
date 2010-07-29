@@ -14,7 +14,7 @@ I also wanted to play with the Twilio and Yes APIs.
 
 ## Status
 
-Very beta but works. I wrote this code back when I knew even less than I know now. If I were to mess with this again, I would do many things differently... *c'est la vie*.
+Very beta but works. I wrote this code back when I knew even less than I know now. For some reason, using the existing Twilio gems wasn't working as quickly as I had hoped. That said, I learned something using **curl**.
 
 ## Warning
 
