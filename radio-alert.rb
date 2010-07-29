@@ -2,37 +2,34 @@
 
 require 'rubygems'
 require 'yesradio'
-#  require 'twilio'
-# require 'twiliolib'
 require 'open-uri'
-require 'net/https'
-
 require 'yaml'
+
 CONFIG = YAML::load(File.open('config.yml'))
 SID = CONFIG['sid']
 TOKEN = CONFIG['token']
 CALLER_ID = CONFIG['caller_id']
 SEND_TO = CONFIG['send_to']
 
-# class Net::HTTP
-#   alias_method :old_initialize, :initialize
-#   def initialize(*args)
-#     old_initialize(*args)
-#     @ssl_context = OpenSSL::SSL::SSLContext.new
-#     @ssl_context.verify_mode = OpenSSL::SSL::VERIFY_NONE
-#   end
-# end
 
-# get stations near san francisco
-def get_stations_near(city)
-  Yesradio::search_stations :loc => city, :max => 50
+# 
+# Get stations near a particular city
+#
+def get_stations_near(city, max=50)
+  Yesradio::search_stations :loc => city, :max => max
 end
 
+#
+# Get the current playing song for a station
+#
 def get_current_song(station)
   Yesradio::get_recent :name => station.name
 end
 
-def poll_stations(stations, artist="Steve Miller")
+#
+# Check a set of radio stations for a currently playing artist.
+#
+def poll_stations(stations, artist)
   stations = [*stations]
   stations.each do |station|
     puts "#{station.name}: #{station.desc}"
@@ -41,75 +38,66 @@ def poll_stations(stations, artist="Steve Miller")
     unless song.first.nil?
       puts "#{song.first.by} - #{song.first.title}"
       if song.first.by.include?(artist)
+        p artist
         send_alert(station, song.first)
       end
     end
   end
 end
   
+#
+# Send an alert to the default number 
+#
+def send_alert(station, song, to=SEND_TO)
 
-def send_alert(station, song)
-
-  to     = SEND_TO
+  uri = make_url
   
-  base_url = "https://api.twilio.com/2008-08-01"
-  base_url << "/Accounts/#{SID}/SMS/Messages"
-  b_url = "https://#{SID}:#{TOKEN}@api.twilio.com/2008-08-01"
-  b_url << "/Accounts/#{SID}/SMS/Messages"
-  uri = URI.parse(base_url)
-  
-  title = song.title rescue 'Title'
-  by = song.by rescue 'By'
-  station_name = station.name rescue 'Name'
-  station_desc = station.desc rescue 'Desc'
+  title = song.title || 'Title'
+  by = song.by || 'Artist'
+  station_name = station.name || 'Name'
+  station_desc = station.desc || 'Description'
   
   message = "#{title} by #{by} is playing on #{station_name} (#{station_desc})."
 
-  param = {
+  params = {
     'From' => CALLER_ID,
     'To' => to,
     'Body' => message
   }
-  
-  data = "From=#{CALLER_ID}&To=#{to}&Body=#{message}"
 
-  curl =  %{curl -u "#{SID}:#{TOKEN}" -d "#{data}" #{uri}}
+  data = URI.escape(params.collect{|k,v| "#{k}=#{v}"}.join('&'))
   
-  puts %x[#{curl}]
+  command =  %{curl -u "#{SID}:#{TOKEN}" -d "#{data}" #{uri}}
   
+  puts %x[#{ command }]
   
-  
-  # http = Net::HTTP.new(uri.host, uri.port)
-  #   request = Net::HTTP::Post.new(uri.request_uri)
-  #   request.basic_auth(SID, TOKEN)
-  #   request.set_form_data(param)
-  #   puts request
-  # response = http.request(request)
-  # puts response
-  # http.use_ssl = true
-  # post = http.post(uri.path, data )
-  
-  # sms = account.request('SMS/Messages', 'POST', param)
-  # resp = account.request("/Calls", 'POST', d)
-  # resp.error! unless resp.kind_of? Net::HTTPSuccess
-  # puts "code: %s\nbody: %s" % [resp.code, resp.body]
-  # puts sms
-   # Twilio::Sms.message(caller_id, send_alert_to, "#{song.title} by #{song.by} is playing on #{station.name} (#{station.desc}).") 
-                        #
 end
 
-place = 'San Francisco, CA'
-local_stations = get_stations_near(place)
-require 'open-uri'
-open('http://google.com')
+# 
+# Make request url
+#
+def make_url(sid=SID)
+  base_url = "https://api.twilio.com/2008-08-01"
+  base_url << "/Accounts/#{sid}/SMS/Messages"
+  uri = URI.parse(base_url)
+end
 
-pid = fork do
-  loop do
-    poll_stations( local_stations )
-    puts 'sleeping...'
-    sleep(180)
+#
+# Monitor stations for a certain artist.
+#
+def monitor(artist, place, period=180)
+  local_stations = get_stations_near(place)
+  pid = fork do
+    loop do
+      poll_stations( local_stations , artist )
+      puts 'sleeping...'
+      sleep(period)
+    end
   end
+  Process.detach(pid)
 end
 
-Process.detach(pid)
+artist = "Santana"
+place = "San Francisco, CA"
+monitor( artist, place )
 
